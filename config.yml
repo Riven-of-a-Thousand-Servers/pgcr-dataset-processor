@@ -1,0 +1,6 @@
+datasource:
+  host: lair
+  port: 5433
+  user: ${DB_USERNAME} 
+  password: ${DB_PASSWORD}
+  database: rivenbot
