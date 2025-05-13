@@ -1,6 +1,6 @@
 # PGCR Dataset Processor
 
-This is a lightweight Go CLI tool that imports Destiny 2 Post Game Carnage Reports (PGCRs) from D2Asun’s dataset into a PostgreSQL database.
+This is a lightweight Go CLI tool that imports Destiny 2 Post Game Carnage Reports (PGCRs) from [D2Asun’s](https://d2.asun.co/pgcr.html) dataset into a PostgreSQL database.
 
 ## Purpose
 Fetching PGCRs directly from Bungie's API is inefficient due to the massive volume (>16 billion) and infrastructure constraints. D2Asun provides a precompiled dataset that simplifies the process.
