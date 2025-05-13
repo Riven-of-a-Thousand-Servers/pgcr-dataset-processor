@@ -3,10 +3,10 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
-	"pgcr-dataset-processor/pkg/types"
+	"pgcr-dataset-processor/pkg/config"
 )
 
-func Connect(datasource types.Datasource) (*sql.DB, error) {
+func Connect(datasource config.Datasource) (*sql.DB, error) {
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		datasource.Host, datasource.Port, datasource.User, datasource.Password, datasource.Database)
 	db, err := sql.Open("postgres", psqlInfo)

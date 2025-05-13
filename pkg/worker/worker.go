@@ -14,6 +14,7 @@ import (
 
 type Worker struct {
 	Inputs             <-chan []byte
+	Progress           <-chan int
 	TransactionManager *postgres.TransactionManager
 }
 

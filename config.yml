@@ -1,6 +1,10 @@
-datasource:
-  host: lair
-  port: 5433
-  user: ${DB_USERNAME} 
-  password: ${DB_PASSWORD}
-  database: rivenbot
+config:
+  workers: 100
+  directory: "/Volumes/T7 Shield/"
+  datasource:
+    host: lair
+    port: 5433
+    user: ${DB_USERNAME} 
+    password: ${DB_PASSWORD}
+    database: rivenbot
+  batchSize: 10000

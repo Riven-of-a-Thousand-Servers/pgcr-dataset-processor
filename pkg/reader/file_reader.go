@@ -3,18 +3,21 @@ package reader
 import (
 	"bufio"
 	"context"
-	"github.com/klauspost/compress/zstd"
 	"log"
 	"os"
+	"sync"
+
+	"github.com/klauspost/compress/zstd"
 )
 
-type FileReader struct {
+type FileIngester struct {
 	Files map[string][]string
 	Input chan []byte
 }
 
 // Reads all the files inside the Files map and attempts to place them on the input channel
-func (fr *FileReader) ReadFiles(ctx context.Context) {
+func (fr *FileIngester) IngestFiles(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for {
 		select {
 		case <-ctx.Done():
