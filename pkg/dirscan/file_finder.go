@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"pgcr-dataset-processor/pkg/utils"
 	"strings"
 )
 
@@ -11,8 +12,8 @@ type FileFinder struct {
 	Root string
 }
 
-func (ff *FileFinder) FindByExtension(extension string) map[string][]string {
-	paths := make(map[string][]string)
+func (ff *FileFinder) FindByExtension(extension string) utils.StatefulMap {
+	files := make(map[string]*utils.FileStatus)
 	filepath.WalkDir(ff.Root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			if os.IsPermission(err) {
@@ -26,10 +27,17 @@ func (ff *FileFinder) FindByExtension(extension string) map[string][]string {
 		}
 
 		if !d.IsDir() && filepath.Ext(d.Name()) == extension {
-			dir := filepath.Dir(path)
-			paths[dir] = append(paths[dir], path)
+			files[d.Name()] = &utils.FileStatus{
+				Path:    path,
+				Started: false,
+				Done:    false,
+			}
 		}
 		return nil
 	})
-	return paths
+	return utils.StatefulMap{
+		Data:      files,
+		Started:   make(chan string, 1),
+		Completed: make(chan string, 1),
+	}
 }

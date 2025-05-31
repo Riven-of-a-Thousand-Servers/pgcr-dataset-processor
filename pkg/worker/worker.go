@@ -9,16 +9,26 @@ import (
 	"log"
 	"pgcr-dataset-processor/pkg/postgres"
 	"pgcr-dataset-processor/pkg/types"
-	"strconv"
 )
 
+type PgcrLine struct {
+	Filepath   string
+	Line       []byte
+	LineNumber int
+}
+
 type Worker struct {
-	Inputs             <-chan []byte
-	Progress           <-chan int
+	Inputs             <-chan PgcrLine
 	TransactionManager *postgres.TransactionManager
 }
 
-func NewDatasetWorker(inputs chan []byte, transactionManager *postgres.TransactionManager) Worker {
+func NewMockWorker(inputs <-chan PgcrLine) Worker {
+	return Worker{
+		Inputs: inputs,
+	}
+}
+
+func NewPgcrWorker(inputs chan PgcrLine, transactionManager *postgres.TransactionManager) Worker {
 	return Worker{
 		Inputs:             inputs,
 		TransactionManager: transactionManager,
@@ -34,29 +44,30 @@ func (w *Worker) ProcessPgcr(ctx context.Context) error {
 				return nil
 			}
 			var pgcr types.PGCR
-			err := json.Unmarshal(input, &pgcr)
+			err := json.Unmarshal(input.Line, &pgcr)
+
 			if err != nil {
-				msg := fmt.Sprintf("Error unmarshaling pgcr: %v", err)
+				msg := fmt.Sprintf("Error unmarshaling pgcr for filepath [%s] at line %d: %v", input.Filepath, input.LineNumber, err)
 				log.Panicf(msg)
 				return fmt.Errorf(msg)
 			}
 
-			compressed, err := compress(pgcr)
-			if err != nil {
-				msg := fmt.Sprintf("Error compressing pgcr [%s] using Gzip: %v", pgcr.ActivityDetails.InstanceID, err)
-				log.Panicf(msg)
-				return fmt.Errorf(msg)
-			}
+			// compressed, err := compress(pgcr)
+			// if err != nil {
+			// 	msg := fmt.Sprintf("Error compressing pgcr [%s] using Gzip: %v", pgcr.ActivityDetails.InstanceID, err)
+			// 	log.Panicf(msg)
+			// 	return fmt.Errorf(msg)
+			// }
 
-			instanceId, err := strconv.ParseInt(pgcr.ActivityDetails.InstanceID, 10, 64)
-			if err != nil {
-				return err
-			}
+			// instanceId, err := pgcr.ActivityDetails.InstanceID.Int64()
+			// if err != nil {
+			// 	return err
+			// }
 
-			err = w.TransactionManager.AddPgcr(ctx, instanceId, compressed)
-			if err != nil {
-				return err
-			}
+			// err = w.TransactionManager.AddPgcr(ctx, instanceId, compressed)
+			// if err != nil {
+			// 	return err
+			// }
 		case <-ctx.Done():
 			return nil
 		}

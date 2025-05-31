@@ -1,11 +1,11 @@
 package types
 
 import (
+	"encoding/json"
 	"time"
 )
 
 type PGCR struct {
-	ID                              string          `json:"_id"`
 	Archived                        time.Time       `json:"archived"`
 	Period                          time.Time       `json:"period"`
 	StartingPhaseIndex              int             `json:"startingPhaseIndex"`
@@ -16,13 +16,13 @@ type PGCR struct {
 }
 
 type ActivityDetails struct {
-	ReferenceID          int64  `json:"referenceId"`
-	DirectorActivityHash int64  `json:"directorActivityHash"`
-	InstanceID           string `json:"instanceId"`
-	Mode                 int    `json:"mode"`
-	Modes                []int  `json:"modes"`
-	IsPrivate            bool   `json:"isPrivate"`
-	MembershipType       int    `json:"membershipType"`
+	ReferenceID          int64       `json:"referenceId"`
+	DirectorActivityHash int64       `json:"directorActivityHash"`
+	InstanceID           json.Number `json:"instanceId"`
+	Mode                 int         `json:"mode"`
+	Modes                []int       `json:"modes"`
+	IsPrivate            bool        `json:"isPrivate"`
+	MembershipType       int         `json:"membershipType"`
 }
 
 type Entry struct {
@@ -46,15 +46,15 @@ type Player struct {
 }
 
 type DestinyUserInfo struct {
-	IconPath                    string `json:"iconPath"`
-	CrossSaveOverride           int    `json:"crossSaveOverride"`
-	ApplicableMembershipTypes   []int  `json:"applicableMembershipTypes"`
-	IsPublic                    bool   `json:"isPublic"`
-	MembershipType              int    `json:"membershipType"`
-	MembershipID                string `json:"membershipId"`
-	DisplayName                 string `json:"displayName"`
-	BungieGlobalDisplayName     string `json:"bungieGlobalDisplayName"`
-	BungieGlobalDisplayNameCode int    `json:"bungieGlobalDisplayNameCode"`
+	IconPath                    string      `json:"iconPath"`
+	CrossSaveOverride           int         `json:"crossSaveOverride"`
+	ApplicableMembershipTypes   []int       `json:"applicableMembershipTypes"`
+	IsPublic                    bool        `json:"isPublic"`
+	MembershipType              int         `json:"membershipType"`
+	MembershipID                json.Number `json:"membershipId"`
+	DisplayName                 string      `json:"displayName"`
+	BungieGlobalDisplayName     string      `json:"bungieGlobalDisplayName"`
+	BungieGlobalDisplayNameCode int         `json:"bungieGlobalDisplayNameCode"`
 }
 
 type Values struct {
