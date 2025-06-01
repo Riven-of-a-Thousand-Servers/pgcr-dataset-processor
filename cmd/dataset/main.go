@@ -6,12 +6,12 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"pgcr-dataset-processor/pkg/config"
-	"pgcr-dataset-processor/pkg/console"
-	"pgcr-dataset-processor/pkg/dirscan"
+	"pgcr-dataset-processor/internal/config"
+	"pgcr-dataset-processor/internal/parser"
+	"pgcr-dataset-processor/internal/ui"
 	// "pgcr-dataset-processor/pkg/postgres"
-	"pgcr-dataset-processor/pkg/reader"
-	"pgcr-dataset-processor/pkg/worker"
+	"pgcr-dataset-processor/internal/ingest"
+	"pgcr-dataset-processor/internal/processor"
 	"sync"
 	"time"
 
@@ -35,7 +35,7 @@ func main() {
 	// 	log.Panicf("Unable to connect to postgres: %v", err)
 	// }
 
-	finder := dirscan.FileFinder{
+	finder := parser.FileFinder{
 		Root: config.Directory,
 	}
 	filemap := finder.FindByExtension(".zst")
@@ -46,7 +46,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	// Setup workers
-	input := make(chan worker.PgcrLine, 200)
+	input := make(chan processor.PgcrLine, 200)
 
 	// transactionManager, err := postgres.NewTransactionManager(ctx, db, config.BatchSize)
 	// if err != nil {
@@ -62,12 +62,12 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			worker := worker.NewMockWorker(input)
+			worker := processor.NewMockWorker(input)
 			worker.ProcessPgcr(ctx)
 		}()
 	}
 
-	fileReader := reader.NewFileIngester(&filemap, input)
+	fileReader := ingest.NewFileIngester(&filemap, input)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -75,7 +75,7 @@ func main() {
 	}()
 
 	wg.Add(1)
-	consoleOutput := console.NewDisplayOutput(start, &filemap)
+	consoleOutput := ui.NewDisplayOutput(start, &filemap)
 	go func() {
 		defer wg.Done()
 		consoleOutput.DisplayOutput(ctx)
