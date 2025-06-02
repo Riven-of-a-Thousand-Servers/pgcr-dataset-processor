@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"pgcr-dataset-processor/internal/parser"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -11,10 +12,11 @@ import (
 	"github.com/jedib0t/go-pretty/v6/text"
 )
 
-type ConsoleRenderer struct {
+type UiRenderer struct {
 	StartTime    time.Time
 	FileStatuses *parser.StatefulMap
 	Counter      *atomic.Int64
+	Ctx          context.Context
 	Pw           progress.Writer
 	trackers     map[string]*progress.Tracker
 }
@@ -33,7 +35,7 @@ var (
 	}
 )
 
-func NewDisplayOutput(start time.Time, fileStatuses *parser.StatefulMap) ConsoleRenderer {
+func StartUi(ctx context.Context, wg *sync.WaitGroup, start time.Time, fileStatuses *parser.StatefulMap) {
 	renderer := progress.NewWriter()
 	renderer.SetAutoStop(false)
 	renderer.SetMessageLength(85)
@@ -45,23 +47,28 @@ func NewDisplayOutput(start time.Time, fileStatuses *parser.StatefulMap) Console
 	renderer.Style().Colors = StyleColorsExample
 	renderer.Style().Visibility.ETA = true
 
-	return ConsoleRenderer{
+	ur := UiRenderer{
 		StartTime:    start,
 		FileStatuses: fileStatuses,
 		Pw:           renderer,
 	}
+
+	go func() {
+		defer wg.Done()
+		ur.displayOutput()
+	}()
 }
 
-func (o *ConsoleRenderer) DisplayOutput(ctx context.Context) {
+func (o *UiRenderer) displayOutput() {
 	defer o.Pw.Stop()
 	go o.Pw.Render()
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-o.Ctx.Done():
 			return
 		case file := <-o.FileStatuses.Started:
-			go addFileTracker(ctx, o.Pw, file, o.FileStatuses.Data[file].Progress)
+			go addFileTracker(o.Ctx, o.Pw, file, o.FileStatuses.Data[file].Progress)
 		}
 	}
 }

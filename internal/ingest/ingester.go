@@ -8,6 +8,7 @@ import (
 	"os"
 	"pgcr-dataset-processor/internal/parser"
 	"pgcr-dataset-processor/internal/processor"
+	"sync"
 
 	"github.com/klauspost/compress/zstd"
 )
@@ -15,18 +16,25 @@ import (
 type FileIngester struct {
 	FileStatuses *parser.StatefulMap
 	Input        chan processor.PgcrLine
+	Ctx          context.Context
 }
 
-func NewFileIngester(fileStatuses *parser.StatefulMap, input chan processor.PgcrLine) FileIngester {
-	return FileIngester{
+func StartIngesting(ctx context.Context, wg *sync.WaitGroup, fileStatuses *parser.StatefulMap, input chan processor.PgcrLine) {
+	fi := FileIngester{
 		Input:        input,
+		Ctx:          ctx,
 		FileStatuses: fileStatuses,
 	}
+
+	go func() {
+		defer wg.Done()
+		fi.ingestFiles()
+	}()
 }
 
 // Reads all the files inside the Files map and attempts to place them on the input channel
-func (fr *FileIngester) IngestFiles(ctx context.Context) error {
-	for currentFile, entry := range fr.FileStatuses.Data {
+func (fi *FileIngester) ingestFiles() error {
+	for currentFile, entry := range fi.FileStatuses.Data {
 		file, err := os.Open(entry.Path)
 		if err != nil {
 			log.Panicf("Error opening file %s: %v", file.Name(), err)
@@ -45,14 +53,14 @@ func (fr *FileIngester) IngestFiles(ctx context.Context) error {
 		scanner := bufio.NewScanner(decoder)
 		scanner.Buffer(buf, maxCapacity)
 
-		status, ok := fr.FileStatuses.Data[currentFile]
+		status, ok := fi.FileStatuses.Data[currentFile]
 		if ok {
 			status.Started = true
 			status.Progress = make(chan int64)
-			fr.FileStatuses.Started <- currentFile
+			fi.FileStatuses.Started <- currentFile
 		}
 
-		fileEntry, ok := fr.FileStatuses.Data[currentFile]
+		fileEntry, ok := fi.FileStatuses.Data[currentFile]
 		if !ok {
 			log.Panicf("No entry for file [%s] found in the stateful map", currentFile)
 		}
@@ -61,11 +69,11 @@ func (fr *FileIngester) IngestFiles(ctx context.Context) error {
 		count := 0
 		for scanner.Scan() {
 			select {
-			case <-ctx.Done():
-				close(fr.Input)
-				return ctx.Err()
+			case <-fi.Ctx.Done():
+				close(fi.Input)
+				return fi.Ctx.Err()
 			default:
-				fr.Input <- processor.PgcrLine{
+				fi.Input <- processor.PgcrLine{
 					Filepath:   entry.Path,
 					Line:       scanner.Bytes(),
 					LineNumber: count,
@@ -84,6 +92,6 @@ func (fr *FileIngester) IngestFiles(ctx context.Context) error {
 		decoder.Close()
 	}
 
-	close(fr.Input)
+	close(fi.Input)
 	return nil
 }

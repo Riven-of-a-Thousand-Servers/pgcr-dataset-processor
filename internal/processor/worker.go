@@ -9,6 +9,7 @@ import (
 	"log"
 	"pgcr-dataset-processor/internal/db"
 	"pgcr-dataset-processor/internal/parser"
+	"sync"
 )
 
 type PgcrLine struct {
@@ -18,6 +19,7 @@ type PgcrLine struct {
 }
 
 type Worker struct {
+	Ctx                context.Context
 	Inputs             <-chan PgcrLine
 	TransactionManager *db.TransactionManager
 }
@@ -28,15 +30,21 @@ func NewMockWorker(inputs <-chan PgcrLine) Worker {
 	}
 }
 
-func NewPgcrWorker(inputs chan PgcrLine, transactionManager *db.TransactionManager) Worker {
-	return Worker{
+func DoWork(ctx context.Context, wg *sync.WaitGroup, inputs chan PgcrLine, transactionManager *db.TransactionManager) {
+	w := Worker{
+		Ctx:                ctx,
 		Inputs:             inputs,
 		TransactionManager: transactionManager,
 	}
+
+	go func() {
+		defer wg.Done()
+		w.Work()
+	}()
 }
 
 // This method will run until the channel of inputs is closed and has no values, or until context cancellation
-func (w *Worker) ProcessPgcr(ctx context.Context) error {
+func (w *Worker) Work() error {
 	for {
 		select {
 		case input, ok := <-w.Inputs:
@@ -68,7 +76,7 @@ func (w *Worker) ProcessPgcr(ctx context.Context) error {
 			// if err != nil {
 			// 	return err
 			// }
-		case <-ctx.Done():
+		case <-w.Ctx.Done():
 			return nil
 		}
 	}

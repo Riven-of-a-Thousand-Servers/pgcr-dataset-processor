@@ -7,11 +7,11 @@ import (
 	"os"
 	"os/signal"
 	"pgcr-dataset-processor/internal/config"
-	"pgcr-dataset-processor/internal/parser"
-	"pgcr-dataset-processor/internal/ui"
-	// "pgcr-dataset-processor/pkg/postgres"
+	mdb "pgcr-dataset-processor/internal/db" // mydb
 	"pgcr-dataset-processor/internal/ingest"
+	"pgcr-dataset-processor/internal/parser"
 	"pgcr-dataset-processor/internal/processor"
+	"pgcr-dataset-processor/internal/ui"
 	"sync"
 	"time"
 
@@ -30,10 +30,10 @@ func main() {
 		log.Panicf("Error reading config: %v", err)
 	}
 
-	// db, err := postgres.Connect(config.Datasource)
-	// if err != nil {
-	// 	log.Panicf("Unable to connect to postgres: %v", err)
-	// }
+	db, err := mdb.Connect(config.Datasource)
+	if err != nil {
+		log.Panicf("Unable to connect to postgres: %v", err)
+	}
 
 	finder := parser.FileFinder{
 		Root: config.Directory,
@@ -43,43 +43,26 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer stop()
 
-	var wg sync.WaitGroup
-
 	// Setup workers
 	input := make(chan processor.PgcrLine, 200)
+	var wg sync.WaitGroup
 
-	// transactionManager, err := postgres.NewTransactionManager(ctx, db, config.BatchSize)
-	// if err != nil {
-	// 	log.Panicf("Unable to create transaction manager: %v", err)
-	// }
-	// defer func() {
-	// 	if err := transactionManager.Close(ctx); err != nil {
-	// 		log.Printf("Error closing transaction manager: %v", err)
-	// 	}
-	// }()
+	wg.Add(1)
+	txm, err := mdb.NewTransactionManager(ctx, db, &wg, config.BatchSize)
+	if err != nil {
+		log.Panicf("Unable to create transaction manager: %v", err)
+	}
 
 	for range config.Workers {
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			worker := processor.NewMockWorker(input)
-			worker.ProcessPgcr(ctx)
-		}()
+		processor.DoWork(ctx, &wg, input, txm)
 	}
 
-	fileReader := ingest.NewFileIngester(&filemap, input)
 	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		fileReader.IngestFiles(ctx)
-	}()
+	ingest.StartIngesting(ctx, &wg, &filemap, input)
 
 	wg.Add(1)
-	consoleOutput := ui.NewDisplayOutput(start, &filemap)
-	go func() {
-		defer wg.Done()
-		consoleOutput.DisplayOutput(ctx)
-	}()
+	ui.StartUi(ctx, &wg, start, &filemap)
 
 	fmt.Print("Press Ctrl+C to end the process\n")
 	<-ctx.Done()

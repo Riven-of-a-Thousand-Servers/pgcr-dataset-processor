@@ -27,12 +27,13 @@ func Test_Process_Success(t *testing.T) {
 
 			inputs := make(chan PgcrLine)
 			w := Worker{
+				Ctx:    ctx,
 				Inputs: inputs,
 			}
 
 			done := make(chan error)
 			go func() {
-				done <- w.ProcessPgcr(ctx)
+				done <- w.Work()
 			}()
 
 			inputs <- PgcrLine{
@@ -40,8 +41,6 @@ func Test_Process_Success(t *testing.T) {
 				LineNumber: 1,
 			}
 			close(inputs)
-
-			err = w.ProcessPgcr(ctx)
 
 			select {
 			case err := <-done:
