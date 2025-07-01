@@ -11,17 +11,6 @@ import (
 	"pgcr-dataset-processor/internal/config"
 )
 
-func Connect(datasource config.Datasource) (*sql.DB, error) {
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		datasource.Host, datasource.Port, datasource.User, datasource.Password, datasource.Database)
-	log.Print("Connecting to postgres db...")
-	db, err := sql.Open("postgres", psqlInfo)
-	if err != nil {
-		return nil, fmt.Errorf("Error opening connection to database: %v", err)
-	}
-	return db, nil
-}
-
 type SqlArgs struct {
 	Query string
 	Args  []string
@@ -41,6 +30,17 @@ type TransactionManager struct {
 	Stats     Stats
 	input     chan SqlArgs
 	batchSize int64
+}
+
+func Connect(datasource config.Datasource) (*sql.DB, error) {
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		datasource.Host, datasource.Port, datasource.User, datasource.Password, datasource.Database)
+	log.Print("Connecting to postgres db...")
+	db, err := sql.Open("postgres", psqlInfo)
+	if err != nil {
+		return nil, fmt.Errorf("Error opening connection to database: %v", err)
+	}
+	return db, nil
 }
 
 func NewTransactionManager(ctx context.Context, db *sql.DB, wg *sync.WaitGroup, batchSize int64) (*TransactionManager, error) {
